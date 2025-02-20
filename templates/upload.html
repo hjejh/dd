@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="upload-container">
+  <h2>파일 업로드</h2>
+  <form method="POST" enctype="multipart/form-data">
+    <p>Drag & Drop 또는 아래 버튼으로 파일을 업로드하세요 (Excel, txt)</p>
+    <input type="file" name="file">
+    <button type="submit">업로드</button>
+  </form>
+</div>
+{% endblock %}

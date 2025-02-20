@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="check-container">
+  <h2>명단 확인</h2>
+
+  <table border="1">
+    <tr>
+      <th>No</th>
+      <th>이름</th>
+      <th>번호</th>
+    </tr>
+
+    {% for name in names %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ name }}</td>
+        <td></td>
+      </tr>
+    {% endfor %}
+    
+  </table>
+  
+  <a href="{{ url_for('shuffle_numbers') }}">
+    <button>돌리기</button>
+
+   <!-- 간절히 바라며... 이미지 삽입 -->
+   <img 
+    src="{{ url_for('static', filename='randomimage.jpeg') }}" 
+    alt="좋은 번호가 걸리길 바라는 이미지" 
+    style="max-width: 300px; display: block; margin-bottom: 20px;"
+  />
+  </a>
+</div>
+{% endblock %}

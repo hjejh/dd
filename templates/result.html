@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="result-container">
+  <h2>투표 결과</h2>
+  <!-- 표 디자인은 CSS로 -->
+  <table>
+    <tr>
+      <th>No</th>
+      <th>이름</th>
+      <th>번호</th>
+    </tr>
+    {% for item in my_list %}
+    <tr>
+      <!-- loop.index => 1부터 시작 -->
+      <td>{{ loop.index }}</td>
+      <td>{{ item.name }}</td>
+      <td>{{ item.number }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  
+  <!-- 버튼들 정렬을 위해 감싸는 DIV -->
+  <div class="button-container">
+    <!-- 다시 돌리기 -->
+    <a href="{{ url_for('shuffle_numbers') }}">
+      <button>돌리기</button>
+    </a>
+  
+    <!-- 결과 저장 -->
+    <a href="{{ url_for('download') }}">
+      <button>결과 저장하기</button>
+    </a>
+    
+    <!-- 메인화면 이동 버튼 -->
+    <a href="{{ url_for('index') }}">
+      <button>메인화면</button>
+    </a>
+  </div>
+</div>
+{% endblock %}

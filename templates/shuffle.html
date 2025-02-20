@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="shuffle-container">
+  <h2>잠시만 기다려주세요...</h2>
+  <p>3, 2, 1... START!</p>
+  <!-- 3초 후 /result 페이지로 이동하도록 JS 처리 -->
+  <script>
+    setTimeout(function() {
+      window.location.href = "{{ url_for('result') }}";
+    }, 5000);
+  </script>
+</div>
+{% endblock %}

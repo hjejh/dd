@@ -1,0 +1,76 @@
+/* 전체 영역 기본 폰트: IPM Plex Sans KR */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'IPM Plex Sans KR', cursive;
+    background-color: #fff0f5; /* 연분홍 배경 */
+    color: #333;
+  }
+  
+  /* wrapper: 페이지 최대 폭, 중앙 정렬 */
+  .wrapper {
+    max-width: 900px;    /* 원하는 최대 폭 */
+    margin: 0 auto;      /* 좌우 auto → 가운데 정렬 */
+    padding: 0 20px;     /* 좌우 여백 20px */
+    box-sizing: border-box;
+  }
+  
+  /* 헤더, 푸터 스타일 */
+  header, footer {
+    background-color: #FFB6C1;
+    color: white;
+    text-align: center;
+    padding: 10px 0;
+  }
+  
+  /* table, th, td에만 별도 폰트: Noto Sans KR */
+  table, th, td {
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+  
+  /* 표 스타일 예시 */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    background-color: #fff;
+  }
+  th, td {
+    border: 1px solid #ffccdd;
+    padding: 10px;
+    text-align: left;
+  }
+  th {
+    background-color: #ffe4ec;
+  }
+  
+  /* 버튼 예시 */
+  button {
+    background-color: #FFA6C9;
+    color: #fff;
+    border: none;
+    padding: 10px 16px;
+    margin: 5px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  button:hover {
+    background-color: #ff91b8;
+  }
+  
+  /* 컨테이너들 예시 */
+  .check-container, .result-container {
+    background-color: #FFFFFF;
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  }
+  
+  .button-container {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }

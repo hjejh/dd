@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="main-container">
+    <h2>실습지 투표를 시작합니다</h2>
+    <p>투표에 참여할 인원의 명단(excel, txt)을 업로드해주세요.</p>
+    <a href="{{ url_for('upload') }}">
+      <button>명단 업로드</button>
+    </a>
+  </div>
+{% endblock %}
