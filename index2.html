@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>자동 주식 매매 대시보드</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f7f7f7;
+    }
+    h1, h2 {
+      color: #333;
+    }
+    #log {
+      background: #fff;
+      padding: 10px;
+      border: 1px solid #ccc;
+      height: 200px;
+      overflow-y: scroll;
+    }
+    button {
+      margin-top: 10px;
+      margin-right: 5px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    input {
+      margin: 5px 0;
+      padding: 5px;
+      width: 300px;
+    }
+    .input-group {
+      margin-bottom: 10px;
+    }
+    #profit {
+      font-weight: bold;
+      color: green;
+    }
+  </style>
+</head>
+<body>
+  <h1>자동 매매 프로그램 대시보드</h1>
+
+  <div class="input-group">
+    <label>종목 코드: </label><br>
+    <input type="text" id="code" value="012450">
+  </div>
+  <div class="input-group">
+    <label>계좌 번호: </label><br>
+    <input type="text" id="account" placeholder="계좌 번호 입력">
+  </div>
+  <div class="input-group">
+    <label>Access Token: </label><br>
+    <input type="text" id="token" placeholder="ACCESS_TOKEN 입력">
+  </div>
+
+  <button onclick="startTrading()">자동 매매 시작</button>
+  <button onclick="stopTrading()">자동 매매 정지</button>
+  <button onclick="fetchQuantity()">보유 수량 조회</button>
+  <button onclick="clearOrders()">미체결 주문 정리</button>
+  <button onclick="fetchEvaluation()">총 평가금 조회</button>
+
+  <h2>실행 로그</h2>
+  <div id="log"></div>
+
+  <h2>가격 추이</h2>
+  <canvas id="priceChart" width="600" height="200"></canvas>
+
+  <h2>누적 수익률</h2>
+  <div id="profit">0%</div>
+
+  <script>
+    let trading = false;
+    let interval = null;
+    let prices = [];
+    let initialPrice = null;
+
+    const logBox = document.getElementById("log");
+    const profitBox = document.getElementById("profit");
+    const ctx = document.getElementById('priceChart').getContext('2d');
+
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: '가격',
+          data: [],
+          borderColor: 'blue',
+          borderWidth: 2,
+          fill: false
+        }]
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        scales: {
+          x: { display: false },
+          y: { beginAtZero: false }
+        }
+      }
+    });
+
+    function log(msg) {
+      const time = new Date().toLocaleTimeString();
+      logBox.innerHTML += `[${time}] ${msg}<br>`;
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    async function fetchPriceFromAPI(code, token) {
+      try {
+        const response = await fetch(`http://localhost:5000/price?code=${code}&token=${token}`);
+        const data = await response.json();
+        if (data.price) return data.price;
+        else {
+          log("❌ 가격 조회 실패: " + (data.error || "알 수 없음"));
+          return null;
+        }
+      } catch (err) {
+        log("❌ API 호출 오류: " + err.message);
+        return null;
+      }
+    }
+
+    async function sendOrderAPI(type, account, code, amount, price, token) {
+      try {
+        const response = await fetch(`http://localhost:5000/order`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ type, account, code, amount, price, token })
+        });
+        const data = await response.json();
+        if (data.success) {
+          log(`✅ ${type} 주문 성공 - 수량: ${amount}, 가격: ${price}`);
+        } else {
+          log(`❌ ${type} 주문 실패: ${data.error || '알 수 없음'}`);
+        }
+      } catch (err) {
+        log(`❌ ${type} 주문 오류: ${err.message}`);
+      }
+    }
+
+    async function fetchQuantity() {
+      const account = document.getElementById("account").value;
+      const code = document.getElementById("code").value;
+      const token = document.getElementById("token").value;
+      try {
+        const res = await fetch(`http://localhost:5000/fetch_quantity?account=${account}&code=${code}&token=${token}`);
+        const data = await res.json();
+        log(`📦 보유 수량: ${data.quantity}`);
+      } catch (err) {
+        log("❌ 수량 조회 오류: " + err.message);
+      }
+    }
+
+    async function clearOrders() {
+      const account = document.getElementById("account").value;
+      const code = document.getElementById("code").value;
+      const token = document.getElementById("token").value;
+      try {
+        const res = await fetch(`http://localhost:5000/clear_orders`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ account, code, token })
+        });
+        const data = await res.json();
+        log(data.message || "🧹 미체결 정리 완료");
+      } catch (err) {
+        log("❌ 미체결 정리 오류: " + err.message);
+      }
+    }
+
+    async function fetchEvaluation() {
+      const account = document.getElementById("account").value;
+      const token = document.getElementById("token").value;
+      try {
+        const res = await fetch(`http://localhost:5000/fetch_eval?account=${account}&token=${token}`);
+        const data = await res.json();
+        log(`💰 총 평가금: ${data.evaluation}`);
+      } catch (err) {
+        log("❌ 평가금 조회 오류: " + err.message);
+      }
+    }
+
+    function calcMA(data, period) {
+      if (data.length < period) return null;
+      const slice = data.slice(-period);
+      const sum = slice.reduce((a, b) => a + b, 0);
+      return (sum / period).toFixed(2);
+    }
+
+    function maSignal(ma20, ma60) {
+      if (ma20 && ma60) {
+        return ma20 > ma60 ? "BUY" : "SELL";
+      }
+      return "WAIT";
+    }
+
+    function updateChart(price) {
+      chart.data.labels.push("");
+      chart.data.datasets[0].data.push(price);
+      chart.update();
+    }
+
+    function updateProfit(currentPrice) {
+      if (!initialPrice) return;
+      const change = ((currentPrice - initialPrice) / initialPrice * 100).toFixed(2);
+      profitBox.textContent = `${change}%`;
+      profitBox.style.color = change >= 0 ? "green" : "red";
+    }
+
+    function startTrading() {
+      if (trading) return;
+      trading = true;
+      const code = document.getElementById("code").value;
+      const account = document.getElementById("account").value;
+      const token = document.getElementById("token").value;
+
+      log(`자동 매매 시작 - 종목: ${code}, 계좌: ${account}`);
+
+      interval = setInterval(async () => {
+        const price = await fetchPriceFromAPI(code, token);
+        if (price === null) return;
+
+        if (prices.length === 0) initialPrice = price;
+        prices.push(price);
+
+        const ma20 = calcMA(prices, 20);
+        const ma60 = calcMA(prices, 60);
+        const signal = maSignal(ma20, ma60);
+
+        log(`가격: ${price}, MA20: ${ma20}, MA60: ${ma60}, 시그널: ${signal}`);
+
+        if (signal === "BUY" || signal === "SELL") {
+          const amount = 1;
+          await sendOrderAPI(signal, account, code, amount, price, token);
+        }
+
+        updateChart(price);
+        updateProfit(price);
+      }, 2000);
+    }
+
+    function stopTrading() {
+      if (!trading) return;
+      clearInterval(interval);
+      trading = false;
+      log("자동 매매 정지됨");
+    }
+  </script>
+</body>
+</html>

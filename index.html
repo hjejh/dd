@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>자동 주식 매매 대시보드</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f7f7f7;
+    }
+    h1 {
+      color: #333;
+    }
+    #log {
+      background: #fff;
+      padding: 10px;
+      border: 1px solid #ccc;
+      height: 300px;
+      overflow-y: scroll;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>자동 매매 프로그램 대시보드</h1>
+
+  <div>
+    <label>종목 코드: </label>
+    <input type="text" id="code" value="012450">
+  </div>
+
+  <button onclick="startTrading()">자동 매매 시작</button>
+  <button onclick="stopTrading()">자동 매매 정지</button>
+
+  <h2>실행 로그</h2>
+  <div id="log"></div>
+
+  <script>
+    let trading = false;
+    let interval = null;
+
+    function log(msg) {
+      const logBox = document.getElementById("log");
+      const time = new Date().toLocaleTimeString();
+      logBox.innerHTML += `[${time}] ${msg}<br>`;
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function fetchPriceSimulation() {
+      return Math.floor(Math.random() * 10000) + 1000; // 임의의 가격 생성
+    }
+
+    let prices = [];
+
+    function calcMA(data, period) {
+      if (data.length < period) return null;
+      const slice = data.slice(-period);
+      const sum = slice.reduce((a, b) => a + b, 0);
+      return (sum / period).toFixed(2);
+    }
+
+    function maSignal(ma20, ma60) {
+      if (ma20 && ma60) {
+        return ma20 > ma60 ? "BUY" : "SELL";
+      }
+      return "WAIT";
+    }
+
+    function startTrading() {
+      if (trading) return;
+      trading = true;
+      const code = document.getElementById("code").value;
+      log(`자동 매매 시작 - 종목: ${code}`);
+      interval = setInterval(() => {
+        const price = fetchPriceSimulation();
+        prices.push(price);
+        const ma20 = calcMA(prices, 20);
+        const ma60 = calcMA(prices, 60);
+        const signal = maSignal(ma20, ma60);
+        log(`가격: ${price}, MA20: ${ma20}, MA60: ${ma60}, 시그널: ${signal}`);
+        if (signal === "BUY" || signal === "SELL") {
+          log(`${signal} 주문 실행 (모의)`);
+        }
+      }, 2000);
+    }
+
+    function stopTrading() {
+      if (!trading) return;
+      clearInterval(interval);
+      trading = false;
+      log("자동 매매 정지됨");
+    }
+  </script>
+</body>
+</html>
