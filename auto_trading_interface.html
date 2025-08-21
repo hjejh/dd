@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>자동매매 시스템</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            opacity: 0.8;
+            font-size: 1.1rem;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            border: 1px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+        }
+
+        .card h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #495057;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(86, 171, 47, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255, 65, 108, 0.3);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-warning:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(240, 147, 251, 0.3);
+        }
+
+        .status-panel {
+            background: #ffffff;
+            border-radius: 15px;
+            padding: 30px;
+            border: 2px solid #e9ecef;
+            margin-top: 30px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .status-item {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            border: 1px solid #dee2e6;
+        }
+
+        .status-item h4 {
+            color: #495057;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .status-item p {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .message {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .auto-trading-controls {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 30px;
+        }
+
+        .auto-trading-controls h3 {
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .trading-status {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .status-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #dc3545;
+            margin-right: 10px;
+        }
+
+        .status-indicator.active {
+            background: #28a745;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+        }
+
+        @media (max-width: 768px) {
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .status-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 자동매매 시스템</h1>
+            <p>한국투자증권 API를 활용한 스마트 트레이딩</p>
+        </div>
+
+        <div class="main-content">
+            <!-- 기본 설정 -->
+            <div class="card">
+                <h3>⚙️ 기본 설정</h3>
+                <div class="form-group">
+                    <label for="accessToken">액세스 토큰</label>
+                    <input type="text" id="accessToken" class="form-control" placeholder="액세스 토큰을 입력하세요">
+                </div>
+                <div class="form-group">
+                    <label for="accountNumber">계좌번호</label>
+                    <input type="text" id="accountNumber" class="form-control" placeholder="계좌번호를 입력하세요">
+                </div>
+                <div class="form-group">
+                    <label for="stockCode">종목코드</label>
+                    <input type="text" id="stockCode" class="form-control" value="122640" placeholder="종목코드 (예: 122640)">
+                </div>
+            </div>
+
+            <div class="card-grid">
+                <!-- 현재가 조회 -->
+                <div class="card">
+                    <h3>📈 현재가 조회</h3>
+                    <button onclick="fetchCurrentPrice()" class="btn btn-primary">현재가 조회</button>
+                    <div id="priceResult" class="status-item" style="margin-top: 20px; display: none;">
+                        <h4>현재가</h4>
+                        <p id="currentPrice">-</p>
+                    </div>
+                </div>
+
+                <!-- 수동 주문 -->
+                <div class="card">
+                    <h3>💰 수동 주문</h3>
+                    <div class="form-group">
+                        <label for="orderType">주문 유형</label>
+                        <select id="orderType" class="form-control">
+                            <option value="BUY">매수</option>
+                            <option value="SELL">매도</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="orderAmount">수량</label>
+                        <input type="number" id="orderAmount" class="form-control" placeholder="주문 수량">
+                    </div>
+                    <div class="form-group">
+                        <label for="orderPrice">가격</label>
+                        <input type="number" id="orderPrice" class="form-control" placeholder="주문 가격">
+                    </div>
+                    <button onclick="placeOrder()" class="btn btn-success">주문 실행</button>
+                </div>
+
+                <!-- 보유 현황 -->
+                <div class="card">
+                    <h3>📊 보유 현황</h3>
+                    <button onclick="fetchHoldings()" class="btn btn-primary">보유 현황 조회</button>
+                    <div class="status-grid" style="margin-top: 20px;">
+                        <div class="status-item">
+                            <h4>보유 수량</h4>
+                            <p id="holdingQuantity">-</p>
+                        </div>
+                        <div class="status-item">
+                            <h4>총 평가금</h4>
+                            <p id="totalEvaluation">-</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 미체결 주문 정리 -->
+                <div class="card">
+                    <h3>🔄 주문 관리</h3>
+                    <button onclick="clearOrders()" class="btn btn-warning">미체결 주문 정리</button>
+                    <p style="margin-top: 15px; color: #6c757d; font-size: 0.9rem;">
+                        모든 미체결 주문을 취소합니다.
+                    </p>
+                </div>
+            </div>
+
+            <!-- 자동매매 제어 -->
+            <div class="auto-trading-controls">
+                <h3>🤖 자동매매 제어</h3>
+                <div class="trading-status">
+                    <div style="display: flex; align-items: center;">
+                        <div id="tradingStatusIndicator" class="status-indicator"></div>
+                        <span id="tradingStatusText">자동매매 중지</span>
+                    </div>
+                    <div>
+                        <button id="startAutoTrading" onclick="toggleAutoTrading()" class="btn btn-success">자동매매 시작</button>
+                    </div>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); border-radius: 10px; padding: 20px; margin-top: 20px;">
+                    <h4 style="margin-bottom: 15px;">실시간 모니터링</h4>
+                    <div class="status-grid">
+                        <div class="status-item" style="background: rgba(255,255,255,0.1); color: white;">
+                            <h4 style="color: rgba(255,255,255,0.8);">MA20</h4>
+                            <p id="ma20Value" style="color: white;">-</p>
+                        </div>
+                        <div class="status-item" style="background: rgba(255,255,255,0.1); color: white;">
+                            <h4 style="color: rgba(255,255,255,0.8);">MA60</h4>
+                            <p id="ma60Value" style="color: white;">-</p>
+                        </div>
+                        <div class="status-item" style="background: rgba(255,255,255,0.1); color: white;">
+                            <h4 style="color: rgba(255,255,255,0.8);">신호</h4>
+                            <p id="signalValue" style="color: white;">-</p>
+                        </div>
+                        <div class="status-item" style="background: rgba(255,255,255,0.1); color: white;">
+                            <h4 style="color: rgba(255,255,255,0.8);">최근 주문</h4>
+                            <p id="lastOrderValue" style="color: white;">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 로딩 표시 -->
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>처리 중...</p>
+            </div>
+
+            <!-- 메시지 표시 영역 -->
+            <div id="messageArea"></div>
+
+            <!-- 로그 영역 -->
+            <div class="status-panel">
+                <h3>📋 실행 로그</h3>
+                <div id="logArea" style="max-height: 300px; overflow-y: auto; background: #f8f9fa; padding: 20px; border-radius: 10px; font-family: monospace;">
+                    <p style="color: #6c757d;">로그가 여기에 표시됩니다...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5000';
+        let isAutoTradingActive = false;
+        let autoTradingInterval = null;
+        let priceHistory = [];
+        let ma20History = [];
+        let ma60History = [];
+
+        function showLoading() {
+            document.getElementById('loading').classList.add('show');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('show');
+        }
+
+        function showMessage(message, type = 'success') {
+            const messageArea = document.getElementById('messageArea');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = message;
+            messageArea.appendChild(messageDiv);
+            
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 5000);
+        }
+
+        function addLog(message) {
+            const logArea = document.getElementById('logArea');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('p');
+            logEntry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> ${message}`;
+            logArea.appendChild(logEntry);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function getFormData() {
+            return {
+                token: document.getElementById('accessToken').value,
+                account: document.getElementById('accountNumber').value,
+                code: document.getElementById('stockCode').value
+            };
+        }
+
+        async function fetchCurrentPrice() {
+            const { token, code } = getFormData();
+            if (!token || !code) {
+                showMessage('토큰과 종목코드를 입력해주세요.', 'error');
+                return;
+            }
+
+            showLoading();
+            try {
+                const response = await fetch(`${API_BASE_URL}/price?code=${code}&token=${token}`);
+                const data = await response.json();
+                
+                if (response.ok && data.price) {
+                    document.getElementById('currentPrice').textContent = data.price.toLocaleString() + '원';
+                    document.getElementById('priceResult').style.display = 'block';
+                    addLog(`현재가 조회: ${data.price.toLocaleString()}원`);
+                    showMessage(`현재가: ${data.price.toLocaleString()}원`);
+                } else {
+                    showMessage(data.error || '가격 조회 실패', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('네트워크 오류가 발생했습니다.', 'error');
+            }
+            hideLoading();
+        }
+
+        async function placeOrder() {
+            const { token, account, code } = getFormData();
+            const orderType = document.getElementById('orderType').value;
+            const amount = document.getElementById('orderAmount').value;
+            const price = document.getElementById('orderPrice').value;
+
+            if (!token || !account || !code || !amount || !price) {
+                showMessage('모든 필드를 입력해주세요.', 'error');
+                return;
+            }
+
+            showLoading();
+            try {
+                const response = await fetch(`${API_BASE_URL}/order`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        type: orderType,
+                        account: account,
+                        code: code,
+                        amount: parseInt(amount),
+                        price: parseInt(price),
+                        token: token
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const orderTypeText = orderType === 'BUY' ? '매수' : '매도';
+                    const message = `${orderTypeText} 주문 성공: ${amount}주, ${parseInt(price).toLocaleString()}원`;
+                    addLog(message);
+                    showMessage(message);
+                    document.getElementById('lastOrderValue').textContent = `${orderTypeText} ${amount}주`;
+                } else {
+                    showMessage('주문 실패', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('네트워크 오류가 발생했습니다.', 'error');
+            }
+            hideLoading();
+        }
+
+        async function fetchHoldings() {
+            const { token, account, code } = getFormData();
+            if (!token || !account || !code) {
+                showMessage('토큰, 계좌번호, 종목코드를 입력해주세요.', 'error');
+                return;
+            }
+
+            showLoading();
+            try {
+                // 보유 수량 조회
+                const quantityResponse = await fetch(`${API_BASE_URL}/fetch_quantity?account=${account}&code=${code}&token=${token}`);
+                const quantityData = await quantityResponse.json();
+
+                // 총 평가금 조회
+                const evalResponse = await fetch(`${API_BASE_URL}/fetch_eval?account=${account}&token=${token}`);
+                const evalData = await evalResponse.json();
+
+                if (quantityResponse.ok && quantityData.quantity !== undefined) {
+                    document.getElementById('holdingQuantity').textContent = quantityData.quantity + '주';
+                    addLog(`보유 수량: ${quantityData.quantity}주`);
+                }
+
+                if (evalResponse.ok && evalData.evaluation) {
+                    const evaluation = parseInt(evalData.evaluation);
+                    document.getElementById('totalEvaluation').textContent = evaluation.toLocaleString() + '원';
+                    addLog(`총 평가금: ${evaluation.toLocaleString()}원`);
+                }
+
+                showMessage('보유 현황 조회 완료');
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('네트워크 오류가 발생했습니다.', 'error');
+            }
+            hideLoading();
+        }
+
+        async function clearOrders() {
+            const { token, account, code } = getFormData();
+            if (!token || !account || !code) {
+                showMessage('토큰, 계좌번호, 종목코드를 입력해주세요.', 'error');
+                return;
+            }
+
+            showLoading();
+            try {
+                const response = await fetch(`${API_BASE_URL}/clear_orders`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        account: account,
+                        code: code,
+                        token: token
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addLog('미체결 주문 정리 완료');
+                    showMessage('미체결 주문 정리 완료');
+                } else {
+                    showMessage(data.error || '주문 정리 실패', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('네트워크 오류가 발생했습니다.', 'error');
+            }
+            hideLoading();
+        }
+
+        function calculateMA(prices, period) {
+            if (prices.length < period) return null;
+            const slice = prices.slice(-period);
+            const sum = slice.reduce((a, b) => a + b, 0);
+            return Math.round(sum / period);
+        }
+
+        function getMASignal(ma20History, ma60History) {
+            if (ma20History.length < 2 || ma60History.length < 2) return 'HOLD';
+            
+            const currentMA20 = ma20History[ma20History.length - 1];
+            const previousMA20 = ma20History[ma20History.length - 2];
+            const currentMA60 = ma60History[ma60History.length - 1];
+            const previousMA60 = ma60History[ma60History.length - 2];
+            
+            // 골든크로스: MA20이 MA60을 상향 돌파
+            if (previousMA20 <= previousMA60 && currentMA20 > currentMA60) {
+                return 'BUY';
+            }
+            // 데드크로스: MA20이 MA60을 하향 돌파
+            if (previousMA20 >= previousMA60 && currentMA20 < currentMA60) {
+                return 'SELL';
+            }
+            
+            return 'HOLD';
+        }
+
+        async function autoTradingCycle() {
+            if (!isAutoTradingActive) return;
+
+            const { token, account, code } = getFormData();
+            if (!token || !account || !code) {
+                addLog('자동매매 중단: 설정값 누락');
+                stopAutoTrading();
+                return;
+            }
+
+            try {
+                // 현재가 조회
+                const priceResponse = await fetch(`${API_BASE_URL}/price?code=${code}&token=${token}`);
+                const priceData = await priceResponse.json();
+
+                if (priceResponse.ok && priceData.price) {
+                    const currentPrice = priceData.price;
+                    priceHistory.push(currentPrice);
+                    
+                    // 이동평균 계산
+                    const ma20 = calculateMA(priceHistory, 20);
+                    const ma60 = calculateMA(priceHistory, 60);
+                    
+                    if (ma20 !== null) ma20History.push(ma20);
+                    if (ma60 !== null) ma60History.push(ma60);
+                    
+                    // UI 업데이트
+                    document.getElementById('currentPrice').textContent = currentPrice.toLocaleString() + '원';
+                    document.getElementById('priceResult').style.display = 'block';
+                    
+                    if (ma20 !== null) {
+                        document.getElementById('ma20Value').textContent = ma20.toLocaleString();
+                    }
+                    if (ma60 !== null) {
+                        document.getElementById('ma60Value').textContent = ma60.toLocaleString();
+                    }
+
+                    // 매매 신호 판단
+                    const signal = getMASignal(ma20History, ma60History);
+                    document.getElementById('signalValue').textContent = signal;
+                    
+                    addLog(`가격: ${currentPrice.toLocaleString()}원, MA20: ${ma20 || '-'}, MA60: ${ma60 || '-'}, 신호: ${signal}`);
+
+                    // 미체결 주문 정리
+                    await fetch(`${API_BASE_URL}/clear_orders`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ account, code, token })
+                    });
+
+                    // 매매 실행
+                    if (signal === 'BUY') {
+                        // 매수 가능 수량을 임시로 1주로 설정 (실제로는 API로 조회해야 함)
+                        const amount = 1;
+                        const orderResponse = await fetch(`${API_BASE_URL}/order`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                type: 'BUY',
+                                account, code, amount,
+                                price: currentPrice,
+                                token
+                            })
+                        });
+                        
+                        const orderData = await orderResponse.json();
+                        if (orderData.success) {
+                            addLog(`자동매수 실행: ${amount}주 @ ${currentPrice.toLocaleString()}원`);
+                            document.getElementById('lastOrderValue').textContent = `매수 ${amount}주`;
+                        }
+                    } else if (signal === 'SELL') {
+                        // 보유 수량 조회
+                        const quantityResponse = await fetch(`${API_BASE_URL}/fetch_quantity?account=${account}&code=${code}&token=${token}`);
+                        const quantityData = await quantityResponse.json();
+                        
+                        if (quantityData.quantity > 0) {
+                            const orderResponse = await fetch(`${API_BASE_URL}/order`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    type: 'SELL',
+                                    account, code,
+                                    amount: quantityData.quantity,
+                                    price: currentPrice,
+                                    token
+                                })
+                            });
+                            
+                            const orderData = await orderResponse.json();
+                            if (orderData.success) {
+                                addLog(`자동매도 실행: ${quantityData.quantity}주 @ ${currentPrice.toLocaleString()}원`);
+                                document.getElementById('lastOrderValue').textContent = `매도 ${quantityData.quantity}주`;
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Auto trading error:', error);
+                addLog(`자동매매 오류: ${error.message}`);
+            }
+        }
+
+        function toggleAutoTrading() {
+            if (isAutoTradingActive) {
+                stopAutoTrading();
+            } else {
+                startAutoTrading();
+            }
+        }
+
+        function startAutoTrading() {
+            const { token, account, code } = getFormData();
+            if (!token || !account || !code) {
+                showMessage('토큰, 계좌번호, 종목코드를 모두 입력해주세요.', 'error');
+                return;
+            }
+
+            isAutoTradingActive = true;
+            document.getElementById('tradingStatusIndicator').classList.add('active');
+            document.getElementById('tradingStatusText').textContent = '자동매매 실행중';
+            document.getElementById('startAutoTrading').textContent = '자동매매 중지';
+            document.getElementById('startAutoTrading').className = 'btn btn-danger';
+            
+            addLog('자동매매 시작');
+            
+            // 매 60초마다 자동매매 실행
+            auto

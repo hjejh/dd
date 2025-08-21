@@ -1,0 +1,575 @@
+# requirements.txt
+flask==2.3.3
+flask-cors==4.0.0
+requests==2.31.0
+python-dotenv==1.0.0
+gunicorn==21.2.0
+sqlite3
+
+# .env (환경변수 설정 예시)
+SECRET_KEY=your-secret-key-here
+DATABASE_PATH=/app/data/trading_data.db
+ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+ADMIN_PASSWORD=your-secure-admin-password
+FLASK_ENV=production
+PORT=5000
+
+# Dockerfile
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# 시스템 패키지 업데이트 및 필요한 패키지 설치
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python 패키지 설치
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 애플리케이션 파일 복사
+COPY . .
+
+# 데이터 디렉토리 생성
+RUN mkdir -p /app/data
+
+# 포트 노출
+EXPOSE 5000
+
+# 비루트 사용자 생성
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Gunicorn으로 애플리케이션 실행
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "production_flask_server:app"]
+
+---
+# docker-compose.yml
+version: '3.8'
+
+services:
+  trading-app:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_PATH=/app/data/trading_data.db
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - FLASK_ENV=production
+    volumes:
+      - trading_data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - trading-app
+    restart: unless-stopped
+
+volumes:
+  trading_data:
+
+---
+# nginx.conf
+events {
+    worker_connections 1024;
+}
+
+http {
+    upstream trading_app {
+        server trading-app:5000;
+    }
+
+    # HTTP to HTTPS 리다이렉트
+    server {
+        listen 80;
+        server_name yourdomain.com www.yourdomain.com;
+        return 301 https://$server_name$request_uri;
+    }
+
+    # HTTPS 서버
+    server {
+        listen 443 ssl http2;
+        server_name yourdomain.com www.yourdomain.com;
+
+        # SSL 설정
+        ssl_certificate /etc/nginx/ssl/cert.pem;
+        ssl_certificate_key /etc/nginx/ssl/key.pem;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
+        ssl_prefer_server_ciphers off;
+
+        # 보안 헤더
+        add_header X-Frame-Options DENY;
+        add_header X-Content-Type-Options nosniff;
+        add_header X-XSS-Protection "1; mode=block";
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+        # 정적 파일
+        location /static/ {
+            alias /app/static/;
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+
+        # API 프록시
+        location / {
+            proxy_pass http://trading_app;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            
+            # 타임아웃 설정
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 60s;
+            proxy_read_timeout 60s;
+        }
+
+        # 로그 설정
+        access_log /var/log/nginx/trading_access.log;
+        error_log /var/log/nginx/trading_error.log;
+    }
+}
+
+---
+# gunicorn.conf.py
+import multiprocessing
+
+# 서버 설정
+bind = "0.0.0.0:5000"
+workers = multiprocessing.cpu_count() * 2 + 1
+worker_class = "sync"
+worker_connections = 1000
+timeout = 120
+keepalive = 2
+
+# 로깅 설정
+accesslog = "/app/logs/gunicorn_access.log"
+errorlog = "/app/logs/gunicorn_error.log"
+loglevel = "info"
+access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
+
+# 프로세스 설정
+max_requests = 1000
+max_requests_jitter = 100
+preload_app = True
+
+# 보안 설정
+limit_request_line = 4094
+limit_request_fields = 100
+limit_request_field_size = 8190
+
+---
+# deploy.sh (배포 스크립트)
+#!/bin/bash
+
+echo "🚀 자동매매 시스템 배포 시작"
+
+# 환경 변수 확인
+if [ ! -f .env ]; then
+    echo "❌ .env 파일이 없습니다. .env.example을 참고하여 생성해주세요."
+    exit 1
+fi
+
+# Docker가 설치되어 있는지 확인
+if ! command -v docker &> /dev/null; then
+    echo "❌ Docker가 설치되어 있지 않습니다."
+    exit 1
+fi
+
+if ! command -v docker-compose &> /dev/null; then
+    echo "❌ Docker Compose가 설치되어 있지 않습니다."
+    exit 1
+fi
+
+# 기존 컨테이너 중지
+echo "🛑 기존 서비스 중지 중..."
+docker-compose down
+
+# 이미지 빌드
+echo "🔨 Docker 이미지 빌드 중..."
+docker-compose build
+
+# 데이터베이스 초기화 (처음 배포시에만)
+if [ "$1" = "--init-db" ]; then
+    echo "🗄️ 데이터베이스 초기화 중..."
+    docker-compose run --rm trading-app python setup_database.py
+fi
+
+# 서비스 시작
+echo "🎯 서비스 시작 중..."
+docker-compose up -d
+
+# 헬스체크
+echo "🏥 헬스체크 중..."
+sleep 10
+if curl -f http://localhost:5000/health > /dev/null 2>&1; then
+    echo "✅ 배포 완료! 서비스가 정상 동작 중입니다."
+    echo "🌐 웹 인터페이스: http://localhost"
+    echo "📊 API 문서: http://localhost"
+else
+    echo "❌ 헬스체크 실패. 로그를 확인해주세요:"
+    docker-compose logs trading-app
+    exit 1
+fi
+
+echo "📋 유용한 명령어:"
+echo "  docker-compose logs -f trading-app  # 로그 확인"
+echo "  docker-compose restart             # 재시작"
+echo "  docker-compose down               # 서비스 중지"
+
+---
+# .env.example
+# 보안 설정
+SECRET_KEY=generate-a-secure-random-key-here
+ADMIN_PASSWORD=change-this-secure-password
+
+# 데이터베이스 설정
+DATABASE_PATH=/app/data/trading_data.db
+
+# CORS 설정 (배포 도메인으로 변경)
+ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+
+# 서버 설정
+FLASK_ENV=production
+PORT=5000
+
+# 한국투자증권 API 설정
+APPKEY=your-app-key
+APPSECRET=your-app-secret
+ACCOUNT=your-account
+
+---
+# systemd 서비스 파일 (Linux 서버용)
+# /etc/systemd/system/trading-app.service
+[Unit]
+Description=Trading App
+After=network.target
+
+[Service]
+Type=exec
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/trading-app
+Environment=PATH=/opt/trading-app/venv/bin
+ExecStart=/opt/trading-app/venv/bin/gunicorn --config gunicorn.conf.py production_flask_server:app
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+
+---
+# Kubernetes 배포 파일 (k8s.yaml)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trading-app
+  labels:
+    app: trading-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: trading-app
+  template:
+    metadata:
+      labels:
+        app: trading-app
+    spec:
+      containers:
+      - name: trading-app
+        image: trading-app:latest
+        ports:
+        - containerPort: 5000
+        env:
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: secret-key
+        - name: DATABASE_PATH
+          value: "/app/data/trading_data.db"
+        - name: FLASK_ENV
+          value: "production"
+        volumeMounts:
+        - name: data-volume
+          mountPath: /app/data
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: trading-data-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trading-app-service
+spec:
+  selector:
+    app: trading-app
+  ports:
+  - port: 80
+    targetPort: 5000
+  type: LoadBalancer
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: trading-data-pvc
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+# Heroku 배포 파일 (Procfile)
+web: gunicorn --config gunicorn.conf.py production_flask_server:app
+
+---
+# Heroku 런타임 설정 (runtime.txt)
+python-3.9.18
+
+---
+# Heroku 배포 스크립트 (deploy-heroku.sh)
+#!/bin/bash
+
+echo "🚀 Heroku 배포 시작"
+
+# Heroku CLI 확인
+if ! command -v heroku &> /dev/null; then
+    echo "❌ Heroku CLI가 설치되어 있지 않습니다."
+    echo "🔗 https://devcenter.heroku.com/articles/heroku-cli"
+    exit 1
+fi
+
+# 앱 이름 입력
+read -p "Heroku 앱 이름을 입력하세요: " APP_NAME
+
+if [ -z "$APP_NAME" ]; then
+    echo "❌ 앱 이름이 필요합니다."
+    exit 1
+fi
+
+# Heroku 앱 생성 (이미 존재하면 스킵)
+heroku create $APP_NAME 2>/dev/null || echo "📱 기존 앱 사용: $APP_NAME"
+
+# 환경 변수 설정
+echo "⚙️ 환경 변수 설정 중..."
+heroku config:set -a $APP_NAME \
+    SECRET_KEY=$(openssl rand -base64 32) \
+    DATABASE_PATH="/app/trading_data.db" \
+    FLASK_ENV="production" \
+    ADMIN_PASSWORD="$(openssl rand -base64 16)"
+
+# PostgreSQL 애드온 추가 (선택사항)
+read -p "PostgreSQL 데이터베이스를 사용하시겠습니까? (y/N): " USE_POSTGRES
+if [ "$USE_POSTGRES" = "y" ]; then
+    heroku addons:create heroku-postgresql:mini -a $APP_NAME
+fi
+
+# Git 저장소 설정
+if [ ! -d ".git" ]; then
+    git init
+    git add .
+    git commit -m "Initial commit"
+fi
+
+heroku git:remote -a $APP_NAME
+
+# 배포
+echo "🚀 배포 중..."
+git push heroku main
+
+# 데이터베이스 초기화
+echo "🗄️ 데이터베이스 초기화 중..."
+heroku run python setup_database.py -a $APP_NAME
+
+echo "✅ Heroku 배포 완료!"
+echo "🌐 앱 URL: https://$APP_NAME.herokuapp.com"
+echo "📊 관리 패널: https://$APP_NAME.herokuapp.com/dashboard"
+
+# 로그 확인
+heroku logs --tail -a $APP_NAME
+
+---
+# AWS EC2 배포 스크립트 (deploy-aws.sh)
+#!/bin/bash
+
+echo "🚀 AWS EC2 배포 시작"
+
+# 서버 업데이트
+sudo apt update && sudo apt upgrade -y
+
+# 필요한 패키지 설치
+sudo apt install -y python3 python3-pip python3-venv nginx docker.io docker-compose git
+
+# Docker 서비스 시작
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker $USER
+
+# 애플리케이션 디렉토리 생성
+sudo mkdir -p /opt/trading-app
+sudo chown $USER:$USER /opt/trading-app
+cd /opt/trading-app
+
+# 코드 다운로드 (Git 저장소에서)
+# git clone https://github.com/yourusername/trading-app.git .
+
+# 환경 변수 설정
+cat > .env << EOF
+SECRET_KEY=$(openssl rand -base64 32)
+DATABASE_PATH=/opt/trading-app/data/trading_data.db
+ALLOWED_ORIGINS=https://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+ADMIN_PASSWORD=$(openssl rand -base64 16)
+FLASK_ENV=production
+PORT=5000
+EOF
+
+# 데이터 디렉토리 생성
+mkdir -p data logs
+
+# SSL 인증서 설정 (Let's Encrypt)
+if command -v certbot &> /dev/null; then
+    echo "🔐 SSL 인증서 설정 중..."
+    read -p "도메인 이름을 입력하세요: " DOMAIN
+    sudo certbot certonly --standalone -d $DOMAIN
+    
+    # SSL 인증서 경로 업데이트
+    sudo mkdir -p ssl
+    sudo cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem ssl/cert.pem
+    sudo cp /etc/letsencrypt/live/$DOMAIN/privkey.pem ssl/key.pem
+fi
+
+# Docker 컨테이너 시작
+docker-compose up -d
+
+# Nginx 설정
+sudo cp nginx.conf /etc/nginx/sites-available/trading-app
+sudo ln -s /etc/nginx/sites-available/trading-app /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+
+# 방화벽 설정
+sudo ufw allow 22
+sudo ufw allow 80
+sudo ufw allow 443
+sudo ufw --force enable
+
+echo "✅ AWS EC2 배포 완료!"
+echo "🌐 웹사이트: http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)"
+
+---
+# 모니터링 스크립트 (monitor.sh)
+#!/bin/bash
+
+# 시스템 모니터링 스크립트
+
+LOG_FILE="/var/log/trading-monitor.log"
+
+log_message() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> $LOG_FILE
+}
+
+check_service() {
+    if docker-compose ps | grep -q "Up"; then
+        log_message "✅ 서비스 정상 동작"
+        return 0
+    else
+        log_message "❌ 서비스 중단 감지"
+        return 1
+    fi
+}
+
+check_disk_space() {
+    DISK_USAGE=$(df /opt/trading-app | tail -1 | awk '{print $5}' | sed 's/%//')
+    if [ $DISK_USAGE -gt 80 ]; then
+        log_message "⚠️ 디스크 사용량 높음: ${DISK_USAGE}%"
+        # 오래된 로그 파일 정리
+        find /opt/trading-app/logs -name "*.log" -mtime +7 -delete
+    fi
+}
+
+check_memory() {
+    MEMORY_USAGE=$(free | grep Mem | awk '{printf "%.0f", $3/$2 * 100.0}')
+    if [ $MEMORY_USAGE -gt 80 ]; then
+        log_message "⚠️ 메모리 사용량 높음: ${MEMORY_USAGE}%"
+    fi
+}
+
+restart_if_needed() {
+    if ! check_service; then
+        log_message "🔄 서비스 재시작 시도"
+        docker-compose restart
+        sleep 30
+        if check_service; then
+            log_message "✅ 서비스 재시작 성공"
+        else
+            log_message "❌ 서비스 재시작 실패"
+            # 알림 발송 (이메일, 슬랙 등)
+        fi
+    fi
+}
+
+# 메인 모니터링 루프
+log_message "🚀 모니터링 시작"
+
+while true; do
+    check_service
+    check_disk_space
+    check_memory
+    restart_if_needed
+    
+    # 5분마다 체크
+    sleep 300
+done
+
+---
+# Crontab 설정 예시 (crontab -e)
+# 매일 새벽 2시에 데이터베이스 백업
+0 2 * * * cd /opt/trading-app && docker-compose exec trading-app python -c "from database import TradingDatabase; TradingDatabase().backup_database()"
+
+# 매주 일요일에 오래된 데이터 정리
+0 3 * * 0 cd /opt/trading-app && docker-compose exec trading-app python -c "from database import TradingDatabase; TradingDatabase().cleanup_old_data(90)"
+
+# 매 5분마다 서비스 상태 체크
+*/5 * * * * /opt/trading-app/monitor.sh
