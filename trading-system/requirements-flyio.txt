@@ -1,0 +1,7 @@
+# requirements-flyio.txt (Fly.io 최적화)
+flask==2.3.3
+flask-cors==4.0.0
+requests==2.31.0
+python-dotenv==1.0.0
+gunicorn==21.2.0
+# sqlite3는 Python 표준 라이브러리
